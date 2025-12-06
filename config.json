@@ -1,0 +1,28 @@
+{
+    "input_dir": "./case/case1/",
+    "output_dir": "./case/case1/result/",
+    "mesh_dir": "./case/case1/mesh/",
+
+    "mesh_size": 30.0,
+    "simplify_roi_boundary_poly": 2.0,
+    "bcoef_border": 3,
+    "max_iterations": 30,
+    "cutoff_diffnorm": 1e-4,
+    "lambda_reg": 1e-6,
+    "displacement_init": "int_pixels", 
+    "subset_r": 31,
+    "search_radius": 20,      
+
+    "parallel": false,
+    "max_workers": 8,
+    "smooth_flag": true,
+    "smooth_method": "gaussian",
+    "smooth_sigma": 1.0,
+
+    "strain_calculate_flag": true,
+    "strain_method": "gaussian_window",
+    "strain_window_half_size": 25,
+
+    "show_plot": true,
+    "save_mesh_plot": true
+}
