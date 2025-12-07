@@ -3,7 +3,7 @@
     "output_dir": "./case/case1/result/",
     "mesh_dir": "./case/case1/mesh/",
 
-    "mesh_size": 30.0,
+    "mesh_size": 100.0,
     "simplify_roi_boundary_poly": 2.0,
     "bcoef_border": 3,
     "max_iterations": 30,
@@ -13,8 +13,8 @@
     "subset_r": 31,
     "search_radius": 20,      
 
-    "parallel": false,
-    "max_workers": 8,
+    "parallel": true,
+    "max_workers": 1,
     "smooth_flag": true,
     "smooth_method": "gaussian",
     "smooth_sigma": 1.0,

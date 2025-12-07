@@ -11,8 +11,10 @@ from tqdm import tqdm
 class BufferManager:
     QKBQKT_ref = None
     QKBQKT_def = None
-    fx = None
-    fy = None
+    fx_ref = None
+    fy_ref = None
+    fx_def = None
+    fy_def = None
     refImg = None
     defImg = None
     mask = None
@@ -45,6 +47,9 @@ class Img_Dataset(Dataset):
         print(f"create QKBQKT_def{idx+1}:")
         BufferManager.QKBQKT_def = self._get_buffer_QK_B_QKT(defImg_bcoef)
         print(f"create QKBQKT_def{idx+1} over!")
+        print("create fx_def, fy_def:")
+        BufferManager.fx_def, BufferManager.fy_def = self._get_image_gradient(df_image, defImg_bcoef, flag='def')
+        print("create fx_def, fy_def over!")
         return df_image, defImg_bcoef
     
     def open_image(self,name):
@@ -61,6 +66,10 @@ class Img_Dataset(Dataset):
             print("create QKBQKT_ref:")
             BufferManager.QKBQKT_ref = self._get_buffer_QK_B_QKT(refImg_bcoef)
             print("create QKBQKT_ref over!")
+        if BufferManager.fx_ref is None or BufferManager.fy_ref is None:
+            print("create fx_ref, fy_ref:")
+            BufferManager.fx_ref, BufferManager.fy_ref = self._get_image_gradient(refImg, refImg_bcoef, flag='ref')
+            print("create fx_ref, fy_ref over!")
         return refImg, refImg_bcoef
     
     def _get_roiRegion(self):
@@ -141,16 +150,20 @@ class Img_Dataset(Dataset):
             plot_bcoef[:, j] = np.fft.ifft(np.fft.fft(plot_bcoef[:, j]) / kernel_b_y)
         return plot_bcoef.real
     
-    def _get_image_gradient(self):
+    def _get_image_gradient(self, Img, plot_bcoef, flag='ref'):
         if not hasattr(self, "QK"):
             self._get_QK_QKdx_QKdxx()
-        # 加载参考图像及其 B 样条系数
-        refImg, ref_bcoef = self._get_refImg()
-        roi = self._get_roiRegion()
+        if flag == 'ref':
+            # 加载参考图像及其 B 样条系数
+            roi = self._get_roiRegion()
+        elif flag == 'def':
+            roi = np.ones_like(Img, dtype=bool)
+        else:
+            raise ValueError("flag must be 'ref' or 'def'")
         
-        H, W = refImg.shape
-        self.fx = np.zeros_like(refImg, dtype=np.float32)
-        self.fy = np.zeros_like(refImg, dtype=np.float32)
+        H, W = Img.shape
+        fx = np.zeros_like(Img, dtype=np.float32)
+        fy = np.zeros_like(Img, dtype=np.float32)
         
         if self.config.bcoef_border >= 3:
             border = self.config.bcoef_border
@@ -164,21 +177,14 @@ class Img_Dataset(Dataset):
         for y, x in tqdm(roi_pixels, desc="Computing image gradients", total=len(roi_pixels)):
             x_vec = np.array([1, 0, 0, 0, 0, 0], dtype=np.float32)  # (6,)
             w_vec = np.array([0, 1, 0, 0, 0, 0], dtype=np.float32)
-            
             top = y + border - offset
             left = x + border - offset
             bottom = top + 6
             right = left + 6
-            block = ref_bcoef[top:bottom, left:right]
-            
-            self.fx[y, x] = x_vec @ (self.QK @ (block @ (self.QK.T @ w_vec)))
-            self.fy[y, x] = w_vec @ (self.QK @ (block @ (self.QK.T @ x_vec)))
-                
-        if BufferManager.fx is None:
-            BufferManager.fx = self.fx
-        if BufferManager.fy is None:
-            BufferManager.fy = self.fy
-        return self.fx, self.fy
+            block = plot_bcoef[top:bottom, left:right]
+            fx[y, x] = x_vec @ (self.QK @ (block @ (self.QK.T @ w_vec)))
+            fy[y, x] = w_vec @ (self.QK @ (block @ (self.QK.T @ x_vec)))
+        return fx, fy
         
     def _get_buffer_QK_B_QKT(self, plot_bcoef):
         # Torch 全局设定

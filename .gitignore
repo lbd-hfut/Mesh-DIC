@@ -215,6 +215,10 @@ __pycache__/
 # case dir
 case/**/*.mat
 case/*.mat
+case/**/*.npy
+case/*.npy
+case/**/*.txt
+case/*.txt
 
 # ignore tests folder
 tests/

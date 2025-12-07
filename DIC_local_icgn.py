@@ -127,8 +127,8 @@ def iterativesearch_local(
     else:
         deltaf_inv = 1 / deltaf_inv
         df_dp_buffer = np.zeros((len(f_buffer), 12), dtype=np.float32)
-        df_dx = BufferManager.fx[Y_valid_corrd, X_valid_corrd]
-        df_dy = BufferManager.fy[Y_valid_corrd, X_valid_corrd]
+        df_dx = BufferManager.fx_ref[Y_valid_corrd, X_valid_corrd]
+        df_dy = BufferManager.fy_ref[Y_valid_corrd, X_valid_corrd]
         df_dp_buffer[:, 0] = df_dx
         df_dp_buffer[:, 1] = df_dy
         # for products, use np.multiply with out to avoid creating X*gx temporaries

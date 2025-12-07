@@ -24,7 +24,8 @@ def create_mesh_elemet(mask, mesh_size, simplify_eps, output_dir):
     # 判断节点编号是否从 0 开始，如果是则转成 1-based
     if quad9_cells.min() == 0:
         quad9_cells = quad9_cells + 1   # 全部 +1
-    quad9_order = [0, 2, 4, 6, 1, 3, 5, 7, 8]
+    quad9_order = [0, 1, 2, 3, 4, 5, 6, 7, 8]  # 转成 DIC 要求的节点顺序 4角点-4边点-中心点
+     # 写入 elements.txt
     with open(elements_file, "w") as fid_quad9:
         for i, conn in enumerate(quad9_cells, start=1):
             conn_reordered = [conn[idx] for idx in quad9_order]
@@ -171,7 +172,7 @@ def read_elements(elem_file):
 
 def plot_mesh(coords, id2idx, elements, output_dir):
     plt.figure(figsize=(20, 20))
-    quad9_order0based = [0, 2, 4, 6, 1, 3, 5, 7, 8]
+    quad9_order0based = [0, 4, 1, 5, 2, 6, 3, 7] # 单元逆时针顺序
     for eid, conn in enumerate(elements, start=1):
         # 获取当前单元所有节点坐标
         pts = np.array([coords[id2idx[nid]] for nid in conn])
@@ -207,7 +208,7 @@ def get_integer_points_of_element(nodes, center=None):
     center: 可选中心点坐标 [Cx, Cy]，不使用时可为 None
     返回: list of [x, y] 所有整数像素点
     """
-    quad9_order0based = [0, 2, 4, 6, 1, 3, 5, 7]
+    quad9_order0based = [0, 4, 1, 5, 2, 6, 3, 7] # 单元逆时针顺序
     if nodes.shape[0] > 8:
         mesh_nodes = nodes[:8, :]
     else:
