@@ -217,6 +217,8 @@ case/**/*.mat
 case/*.mat
 case/**/*.npy
 case/*.npy
+case/**/*.npz
+case/*.npz
 case/**/*.txt
 case/*.txt
 

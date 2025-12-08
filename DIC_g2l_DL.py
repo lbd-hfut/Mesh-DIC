@@ -50,6 +50,23 @@ class Comp_global2local:
         Global2Local_buffer.mask = mask
         self.load_mesh_buffer()
         self.model = NNModel().to(device)
+        result_file = os.path.join(self.mesh_dir, f"global2local_J.npz")
+        if os.path.exists(result_file):
+            self.load_Global2Local_buffer(result_file)
+            print(f"读取全局局部对应点数据：{result_file}")
+        else:
+            print("求解全局局部对应点数据")
+            self.solve()
+            self.save_results()
+            self.plot_mesh_points(
+                Global2Local_buffer.plot_validpoints, 
+                var_name="mesh_plot_validpoints"
+                )
+            self.plot_mesh_points(
+                Global2Local_buffer.plot_calcpoints, 
+                var_name="mesh_plot_calcpoints"
+                )
+        
         
     def load_mesh_buffer(self):
         nodes_file = os.path.join(self.mesh_dir, "nodes.txt")
@@ -84,10 +101,10 @@ class Comp_global2local:
     def save_results(self):
         output_dir = self.mesh_dir
         os.makedirs(output_dir, exist_ok=True)
-        save_path = os.path.join(output_dir, f"global2local_J.mat")
+        save_path_mat = os.path.join(output_dir, f"global2local_J.mat")
+        save_path_npy = os.path.join(output_dir, f"global2local_J.npz")
         # 构建要保存的字典，对应 MATLAB struct
         dic_struct = {
-            
             'plot_calcpoints': Global2Local_buffer.plot_calcpoints,
             'plot_validpoints': Global2Local_buffer.plot_validpoints,
             'plot_global_coords': Global2Local_buffer.plot_global_coords,
@@ -97,8 +114,23 @@ class Comp_global2local:
             'cond_Jn': Global2Local_buffer.plot_Jn
         }
         # 使用 savemat 保存，结构体形式
-        savemat(save_path, {'global2local_J': dic_struct})
-        print(f"Saved MATLAB .mat file: {save_path}")
+        savemat(save_path_mat, {'global2local_J': dic_struct})
+        np.savez(save_path_npy, **dic_struct)
+        print(f"Saved MATLAB .mat file: {save_path_mat}")
+        print(f"Saved Python .npy file: {save_path_npy}")
+        
+    def load_Global2Local_buffer(self, result_file):
+        # 读取 npz 文件
+        data = np.load(result_file, allow_pickle=True)
+        # 赋值回 Global2Local_buffer
+        Global2Local_buffer.plot_calcpoints = data['plot_calcpoints']
+        Global2Local_buffer.plot_validpoints = data['plot_validpoints']
+        Global2Local_buffer.plot_global_coords = data['plot_global_coords']
+        Global2Local_buffer.plot_local_coords = data['plot_local_coords']
+        Global2Local_buffer.threaddiagram = data['eie_idx_matrix']
+        Global2Local_buffer.plot_J = data['plot_J']
+        Global2Local_buffer.plot_Jn = data['cond_Jn']
+        print(f"Loaded Global2Local_buffer from {result_file}")
     
     def plot_mesh_points(self, plot_var=None, var_name="plot_validpoints"):
         # 获取 plot_validpoints 的形状（用于后续坐标对齐）
@@ -360,7 +392,7 @@ if __name__ == "__main__":
         )
     
     comp_g2l = Comp_global2local(cfg, mask)
-    comp_g2l.solve()
-    comp_g2l.save_results()
-    comp_g2l.plot_mesh_points(Global2Local_buffer.plot_validpoints, var_name="mesh_plot_validpoints")
-    comp_g2l.plot_mesh_points(Global2Local_buffer.plot_calcpoints, var_name="mesh_plot_calcpoints")
+    # comp_g2l.solve()
+    # comp_g2l.save_results()
+    # comp_g2l.plot_mesh_points(Global2Local_buffer.plot_validpoints, var_name="mesh_plot_validpoints")
+    # comp_g2l.plot_mesh_points(Global2Local_buffer.plot_calcpoints, var_name="mesh_plot_calcpoints")
