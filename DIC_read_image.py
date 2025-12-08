@@ -35,6 +35,10 @@ class Img_Dataset(Dataset):
         self.rfimage_files = [image_files[0]]
         self.mask_files = [image_files[-1]]
         self.dfimage_files = image_files[1:-1]
+        self._get_QK_QKdx_QKdxx()
+        self._get_roiRegion()
+        refImg, refImg_bcoef = self._get_refImg()
+        self._get_image_gradient(Img=refImg, plot_bcoef=refImg_bcoef, flag="ref")
         
     def __len__(self):
         return len(self.dfimage_files)

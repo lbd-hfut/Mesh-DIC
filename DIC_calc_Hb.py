@@ -5,6 +5,7 @@ from scipy.sparse.linalg import spsolve
 
 from DIC_read_image import BufferManager
 from DIC_g2l_DL import Global2Local_buffer 
+from DIC_nodeuv_init import NodeUVInit_buffer
 from DIC_shape_function import shape_functions_8node_batch
 
 class StiffnessMatrixBuffer:
@@ -227,7 +228,7 @@ def assemble_global_residual_Q8(node_uv, alpha):
     return b_global
     
     
-def global_ICGN(U_init, alpha, tol=1e-6, maxIter=100):
+def global_ICGN(alpha, tol=1e-6, maxIter=100):
     """
     全局 ICGN 迭代求解
     参数:
@@ -240,6 +241,7 @@ def global_ICGN(U_init, alpha, tol=1e-6, maxIter=100):
         norm_of_W_list: 每次迭代位移增量的规范化列表
     """
     # 将位移展开为一维向量
+    U_init = NodeUVInit_buffer.nodes_coord_uv.copy()
     num_nodes = U_init.shape[0]
     DIM = 2
     U = U_init.reshape(-1)  # shape (2*num_nodes,)
@@ -265,6 +267,8 @@ def global_ICGN(U_init, alpha, tol=1e-6, maxIter=100):
         
         # 5. 更新位移
         U[ind_fem_not_zero] += W
+        if (step+1) % (maxIter//10) == 0:
+            print(f"Step {step+1}/{maxIter}, normW: {normW:.5e}")
         
         # 6. 收敛判断
         if normW < tol:
