@@ -3,10 +3,10 @@
     "output_dir": "./case/case1/result/",
     "mesh_dir": "./case/case1/mesh/",
 
-    "mesh_size": 100.0,
+    "mesh_size": 41.0,
     "simplify_roi_boundary_poly": 2.0,
     "bcoef_border": 3,
-    "max_iterations": 30,
+    "max_iterations": 1000,
     "cutoff_diffnorm": 1e-4,
     "lambda_reg": 1e-6,
     "displacement_init": "int_pixels", 

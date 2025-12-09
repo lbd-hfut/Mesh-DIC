@@ -234,3 +234,4 @@ def newton_local(
             # print("corrcoef:")
             # print(corrcoef)
             return SUCCESS, defvector_new, diffnorm, corrcoef
+        

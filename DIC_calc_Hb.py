@@ -2,6 +2,7 @@ import os
 import numpy as np
 from scipy.sparse import coo_matrix
 from scipy.sparse.linalg import spsolve
+from scipy.sparse import csr_matrix
 
 from DIC_read_image import BufferManager
 from DIC_g2l_DL import Global2Local_buffer 
@@ -40,6 +41,16 @@ def interpqbs(xs, ys, REF_FLAG=False, DEF_FLAG=False):
     values = np.einsum("ni,ni->n", tmp, x_powers)
     return values
 
+def load_StiffnessMatrixBuffer(FEM_file):
+    npzfile = np.load(FEM_file, allow_pickle=True)
+    StiffnessMatrixBuffer.A_global = \
+        csr_matrix(
+            (npzfile['A_data'], npzfile['A_indices'], npzfile['A_indptr']), 
+            shape=npzfile['A_shape']
+            )
+    StiffnessMatrixBuffer.DN_list_elem = npzfile['DN']
+    StiffnessMatrixBuffer.Nmat_list_elem = npzfile['Nmat']
+
 
 def assemble_global_stiffness_Q8(alpha, output_dir):
     num_nodes  = Global2Local_buffer.nodes_coord.shape[0]
@@ -54,8 +65,8 @@ def assemble_global_stiffness_Q8(alpha, output_dir):
         coords = np.array(
             [Global2Local_buffer.nodes_coord[Global2Local_buffer.id2idx[nid]] for nid in conn]
             ) # shape (8, 2)
-        row_list, col_list = np.where(Global2Local_buffer.threaddiagrams == i)
-        valid_flag = Global2Local_buffer.valid_mask[row_list, col_list]
+        row_list, col_list = np.where(Global2Local_buffer.threaddiagram == i)
+        valid_flag = Global2Local_buffer.plot_validpoints[row_list, col_list]
         if np.sum(valid_flag) == 0:
             StiffnessMatrixBuffer.Nmat_list_elem.append([])
             StiffnessMatrixBuffer.DN_list_elem.append([])
@@ -63,8 +74,10 @@ def assemble_global_stiffness_Q8(alpha, output_dir):
         row_list = row_list[valid_flag]
         col_list = col_list[valid_flag]
         # 获取像素坐标及对应的单元内局部坐标
-        x_px_list, y_px_list = Global2Local_buffer.plot_global_coords[row_list, col_list] 
-        xi_list, eta_list = Global2Local_buffer.plot_local_coords[row_list, col_list]
+        global_coords = Global2Local_buffer.plot_global_coords[row_list, col_list] 
+        x_px_list, y_px_list = global_coords[:,0], global_coords[:,1]
+        local_coords = Global2Local_buffer.plot_local_coords[row_list, col_list]
+        xi_list, eta_list = local_coords[:,0], local_coords[:,1]
         # 计算形函数及其导数
         N_list, dN_dxi_list, dN_deta_list = shape_functions_8node_batch(xi_list, eta_list)
         # 获取参考图像梯度
@@ -140,15 +153,13 @@ def assemble_global_stiffness_Q8(alpha, output_dir):
     A_global = coo_matrix((INDEXAVAL, (INDEXAI, INDEXAJ)), shape=(FEMSize, FEMSize))
     A_global = A_global.tocsr()
     StiffnessMatrixBuffer.A_global = A_global
-    StiffnessMatrixBuffer.DN_list_elem = np.array(StiffnessMatrixBuffer.DN_list_elem)
-    StiffnessMatrixBuffer.Nmat_list_elem = np.array(StiffnessMatrixBuffer.DN_list_elem)
-    save_path_npy = os.path.join(output_dir, f"FEM_system.npz")
-    np.savez(save_path_npy, A_data=A_global.tocsr().data,
-         A_indices=A_global.tocsr().indices,
-         A_indptr=A_global.tocsr().indptr,
-         A_shape = A_global.shape,
-         DN = StiffnessMatrixBuffer.DN_list_elem,
-         Nmat = StiffnessMatrixBuffer.Nmat_list_elem)
+    # save_path_npy = os.path.join(output_dir, f"FEM_system.npz")
+    # np.savez(save_path_npy, A_data=A_global.tocsr().data,
+    #      A_indices=A_global.tocsr().indices,
+    #      A_indptr=A_global.tocsr().indptr,
+    #      A_shape = A_global.shape,
+    #      DN = StiffnessMatrixBuffer.DN_list_elem,
+    #      Nmat = StiffnessMatrixBuffer.Nmat_list_elem)
 
         
 def assemble_global_residual_Q8(node_uv, alpha):
@@ -164,19 +175,20 @@ def assemble_global_residual_Q8(node_uv, alpha):
         ele_node_uv = np.array([node_uv[Global2Local_buffer.id2idx[nid]] for nid in conn]) # shape (8, 2)
         ele_node_u = ele_node_uv[:, 0]
         ele_node_v = ele_node_uv[:, 1]
-        row_list, col_list = np.where(Global2Local_buffer.threaddiagrams == i)
-        valid_flag = Global2Local_buffer.valid_mask[row_list, col_list]
+        row_list, col_list = np.where(Global2Local_buffer.threaddiagram == i)
+        valid_flag = Global2Local_buffer.plot_validpoints[row_list, col_list]
         if np.sum(valid_flag) == 0:
             continue
         row_list = row_list[valid_flag]
         col_list = col_list[valid_flag]
         # 获取像素坐标及对应的单元内局部坐标
-        x_px_list, y_px_list = Global2Local_buffer.plot_global_coords[row_list, col_list] 
-        xi_list, eta_list = Global2Local_buffer.plot_local_coords[row_list, col_list]
+        global_coords = Global2Local_buffer.plot_global_coords[row_list, col_list] 
+        x_px_list, y_px_list = global_coords[:,0], global_coords[:,1]
+        local_coords = Global2Local_buffer.plot_local_coords[row_list, col_list]
+        xi_list, eta_list = local_coords[:,0], local_coords[:,1]
         # 获取形函数
-        N_idx = [0,2,4,6,8,10,12,14]
         Nmat_list = StiffnessMatrixBuffer.Nmat_list_elem[i-1]
-        N_list =  Nmat_list[0,N_idx]
+        N_list, _, _ = shape_functions_8node_batch(xi_list, eta_list)
         # 计算当前变形后像素坐标
         u_px_list = np.einsum('pk,k->p', N_list, ele_node_u)
         v_px_list = np.einsum('pk,k->p', N_list, ele_node_v)
@@ -245,14 +257,29 @@ def global_ICGN(alpha, tol=1e-6, maxIter=100):
     num_nodes = U_init.shape[0]
     DIM = 2
     U = U_init.reshape(-1)  # shape (2*num_nodes,)
-    
     # 记录每次迭代位移增量 norm
     norm_of_W_list = []
+    A = StiffnessMatrixBuffer.A_global.copy()
+    # -----------------------------------------------------
+    # 自动检测是否存在全 0 行（或无对角线），并构建可用自由度
+    # -----------------------------------------------------
+    n = A.shape[0]
+    # 每行元素数量：indptr[k+1] - indptr[k]
+    row_nnz = A.indptr[1:] - A.indptr[:-1]
+    row_not_zero = row_nnz > 0
+    # 对角线，若 CSR 中查不到 diag，则对角线对应位置为 0
+    diag = A.diagonal()
+    diag_not_zero = (np.abs(diag) > 1e-14)
+    # 自由度有效：行非空 且 对角线非零
+    valid_dof_mask = row_not_zero & diag_not_zero
+    ind_fem_not_zero = np.where(valid_dof_mask)[0]
+    print(f"[ICGN] 有效 DOF 数量: {len(ind_fem_not_zero)} / {n}")
+    if len(ind_fem_not_zero) == 0:
+        raise RuntimeError("全部自由度均无效（全 0 行或无对角线）！")
     
-    # 获取有效自由度索引（可以自定义，例如排除固定边界点）
-    ind_fem_not_zero = np.arange(len(U))  # 默认全自由度有效
-    # 如果有固定自由度，可用 mask / boolean array 来排除
-    
+    # -----------------------------------------------------
+    # 迭代
+    # -----------------------------------------------------
     for step in range(maxIter):
         # 1. 计算全局残差向量 b
         b_global = assemble_global_residual_Q8(U.reshape(num_nodes, 2), alpha)  # shape (2*num_nodes,)
@@ -267,8 +294,8 @@ def global_ICGN(alpha, tol=1e-6, maxIter=100):
         
         # 5. 更新位移
         U[ind_fem_not_zero] += W
-        if (step+1) % (maxIter//10) == 0:
-            print(f"Step {step+1}/{maxIter}, normW: {normW:.5e}")
+        # if (step+1) % (maxIter//10) == 0:
+        print(f"Step {step+1}/{maxIter}, normW: {normW:.5e}")
         
         # 6. 收敛判断
         if normW < tol:
@@ -283,7 +310,87 @@ def global_ICGN(alpha, tol=1e-6, maxIter=100):
     # 返回位移矩阵 (num_nodes, 2)
     return U.reshape(num_nodes, DIM), norm_of_W_list
     
+def interp_uv_strain(node_uv):
+    num_nodes  = Global2Local_buffer.nodes_coord.shape[0]
+    plot_u = np.zeros_like(BufferManager.refImg, dtype=np.float32)
+    plot_v = np.zeros_like(BufferManager.refImg, dtype=np.float32)
+    plot_ex = np.zeros_like(BufferManager.refImg, dtype=np.float32)
+    plot_ey = np.zeros_like(BufferManager.refImg, dtype=np.float32)
+    plot_rxy = np.zeros_like(BufferManager.refImg, dtype=np.float32)
     
+    # Loop over elements to assemble deformation matrix 
+    for i, ele in enumerate(Global2Local_buffer.elements, start=1):
+        # -------------------------
+        # 1. 单元节点坐标和位移
+        # -------------------------
+        conn = ele[:8]
+        ele_node_xy = np.array(
+            [Global2Local_buffer.nodes_coord[Global2Local_buffer.id2idx[nid]] for nid in conn]
+            ) # shape (8, 2)
+        ele_node_uv = np.array([node_uv[Global2Local_buffer.id2idx[nid]] for nid in conn]) # shape (8, 2)
+        ele_node_u = ele_node_uv[:, 0]
+        ele_node_v = ele_node_uv[:, 1]
+        # -------------------------
+        # 2. 单元像素提取
+        # -------------------------
+        row_list, col_list = np.where(Global2Local_buffer.threaddiagram == i)
+        valid_flag = Global2Local_buffer.plot_validpoints[row_list, col_list]
+        if np.sum(valid_flag) == 0:
+            continue
+        row_list = row_list[valid_flag]
+        col_list = col_list[valid_flag]
+        local_coords = Global2Local_buffer.plot_local_coords[row_list, col_list]
+        xi_list, eta_list = local_coords[:,0], local_coords[:,1]
+        # -------------------------
+        # 3. 形函数与导数（局部导数）
+        # -------------------------
+        N_list, dN_dxi_list, dN_deta_list = shape_functions_8node_batch(xi_list, eta_list)
+        # -------------------------
+        # 4. 计算像素位移
+        # -------------------------
+        u_px_list = np.einsum('pk,k->p', N_list, ele_node_u)
+        v_px_list = np.einsum('pk,k->p', N_list, ele_node_v)
+        plot_u[row_list, col_list] = u_px_list
+        plot_v[row_list, col_list] = v_px_list
+        # -------------------------
+        # 5. 计算 Jacobian (x,y ← ξ,η)
+        # -------------------------
+        # dx/dξ = Σ dN/dξ * x_k
+        dx_dxi  = np.einsum('pk,k->p', dN_dxi_list,  ele_node_xy[:,0])
+        dx_deta = np.einsum('pk,k->p', dN_deta_list, ele_node_xy[:,0])
+        dy_dxi  = np.einsum('pk,k->p', dN_dxi_list,  ele_node_xy[:,1])
+        dy_deta = np.einsum('pk,k->p', dN_deta_list, ele_node_xy[:,1])
+        # Jacobian determinant
+        detJ = dx_dxi * dy_deta - dx_deta * dy_dxi
+        invJ_11 =  dy_deta / detJ
+        invJ_12 = -dx_deta / detJ
+        invJ_21 = -dy_dxi  / detJ
+        invJ_22 =  dx_dxi  / detJ
+        # -------------------------
+        # 6. 计算局部导数：du/dξ, du/dη, dv/dξ, dv/dη
+        # -------------------------
+        du_dxi  = np.einsum('pk,k->p', dN_dxi_list, ele_node_u)
+        du_deta = np.einsum('pk,k->p', dN_deta_list, ele_node_u)
+        dv_dxi  = np.einsum('pk,k->p', dN_dxi_list, ele_node_v)
+        dv_deta = np.einsum('pk,k->p', dN_deta_list, ele_node_v)
+        # -------------------------
+        # 7. 转换到全局坐标系
+        # -------------------------
+        du_dx = invJ_11 * du_dxi + invJ_12 * du_deta
+        du_dy = invJ_21 * du_dxi + invJ_22 * du_deta
+        dv_dx = invJ_11 * dv_dxi + invJ_12 * dv_deta
+        dv_dy = invJ_21 * dv_dxi + invJ_22 * dv_deta
+        # -------------------------
+        # 8. 计算像素应变
+        # -------------------------
+        ex_list  = du_dx
+        ey_list  = dv_dy
+        rxy_list = (du_dy + dv_dx) / 2
+        plot_ex[row_list, col_list] = ex_list
+        plot_ey[row_list, col_list] = ey_list
+        plot_rxy[row_list, col_list] = rxy_list
+        
+    return plot_u, plot_v, plot_ex, plot_ey, plot_rxy
         
         
         
