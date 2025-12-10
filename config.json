@@ -15,7 +15,7 @@
 
     "parallel": true,
     "max_workers": 1,
-    "smooth_flag": true,
+    "smooth_flag": false,
     "smooth_method": "gaussian",
     "smooth_sigma": 1.0,
 

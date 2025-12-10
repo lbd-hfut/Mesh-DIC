@@ -91,8 +91,8 @@ class node_uv_init:
 def cal_seed_point(
     idx:int,
     cy: int, cx: int, 
-    max_iter: int = 25,
-    cutoff_diffnorm: float = 1e-3,
+    max_iter: int = 200,
+    cutoff_diffnorm: float = 1e-5,
     lambda_reg: float = 1e-3
 ):
     mask_pad = BufferManager.mask_pad
