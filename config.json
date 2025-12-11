@@ -1,7 +1,7 @@
 {
-    "input_dir": "./case/case1/",
-    "output_dir": "./case/case1/result/",
-    "mesh_dir": "./case/case1/mesh/",
+    "input_dir": "./case/case2/",
+    "output_dir": "./case/case2/result/",
+    "mesh_dir": "./case/gear/",
 
     "mesh_size": 41.0,
     "simplify_roi_boundary_poly": 2.0,

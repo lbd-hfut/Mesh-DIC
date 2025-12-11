@@ -58,14 +58,14 @@ class Comp_global2local:
             print("求解全局局部对应点数据")
             self.solve()
             self.save_results()
-            self.plot_mesh_points(
-                Global2Local_buffer.plot_validpoints, 
-                var_name="mesh_plot_validpoints"
-                )
-            self.plot_mesh_points(
-                Global2Local_buffer.plot_calcpoints, 
-                var_name="mesh_plot_calcpoints"
-                )
+        self.plot_mesh_points(
+            Global2Local_buffer.plot_validpoints, 
+            var_name="mesh_plot_validpoints"
+            )
+        self.plot_mesh_points(
+            Global2Local_buffer.plot_calcpoints, 
+            var_name="mesh_plot_calcpoints"
+            )
         
         
     def load_mesh_buffer(self):
@@ -147,24 +147,36 @@ class Comp_global2local:
             alpha=0.5            # 半透明
         )
         # 绘制 Quad9 的四边形边界（前8个节点）
-        draw_order = [0, 4, 1, 5, 2, 6, 3, 7, 8]  # 二阶边顺序
+        if len(Global2Local_buffer.elements[0]) == 9:
+            draw_order = [0, 4, 1, 5, 2, 6, 3, 7, 8]  # 二阶边顺序
+        else:
+            draw_order = [0, 4, 1, 5, 2, 6, 3, 7]  # 二阶边顺序
         for eid, conn in enumerate(Global2Local_buffer.elements, start=1):
-            quad9_nodes = np.array([Global2Local_buffer.nodes_coord[Global2Local_buffer.id2idx[nid]] for nid in conn])
-            quad9_nodes_reordered  = quad9_nodes[draw_order]
-            pts_polygon = quad9_nodes_reordered[:8]
-            # 闭合 polygon
-            pts_closed   = np.vstack([pts_polygon, pts_polygon[0]])
-            # 画出单元边界
-            ax.plot(pts_closed[:, 0], pts_closed[:, 1], '-k')
-            center_id = conn[8]
-            ax.plot(pts_closed[:, 0], pts_closed[:, 1], '-k')
-            center_id = conn[8]
-            for nid in conn:
-                x, y = Global2Local_buffer.nodes_coord[Global2Local_buffer.id2idx[nid]]
-                if nid == center_id:
-                    plt.text(x, y, str(eid), color='blue', fontsize=4)
-                    continue
-                plt.text(x, y, str(nid), color='red', fontsize=4)
+            if len(conn) == 9:
+                quad9_nodes = np.array([Global2Local_buffer.nodes_coord[Global2Local_buffer.id2idx[nid]] for nid in conn])
+                quad9_nodes_reordered  = quad9_nodes[draw_order]
+                pts_polygon = quad9_nodes_reordered[:8]
+                # 闭合 polygon
+                pts_closed   = np.vstack([pts_polygon, pts_polygon[0]])
+                # 画出单元边界
+                ax.plot(pts_closed[:, 0], pts_closed[:, 1], '-k')
+                center_id = conn[8]
+                for nid in conn:
+                    x, y = Global2Local_buffer.nodes_coord[Global2Local_buffer.id2idx[nid]]
+                    if nid == center_id:
+                        plt.text(x, y, str(eid), color='blue', fontsize=4)
+                        continue
+                    plt.text(x, y, str(nid), color='red', fontsize=4)
+            else:
+                quad8_nodes = np.array([Global2Local_buffer.nodes_coord[Global2Local_buffer.id2idx[nid]] for nid in conn])
+                quad8_nodes_reordered  = quad8_nodes[draw_order]
+                # 闭合 polygon
+                pts_closed   = np.vstack([quad8_nodes_reordered, quad8_nodes_reordered[0]])
+                # 画出单元边界
+                ax.plot(pts_closed[:, 0], pts_closed[:, 1], '-k')
+                for nid in conn:
+                    x, y = Global2Local_buffer.nodes_coord[Global2Local_buffer.id2idx[nid]]
+                    plt.text(x, y, str(nid), color='red', fontsize=4)
         save_path = os.path.join(self.mesh_dir, var_name+".png")
         plt.savefig(save_path, dpi=300, bbox_inches="tight")
         plt.close()
@@ -366,8 +378,8 @@ def build_eie_idx_matrix(Inform, mask):
     # 填充单元编号
     for x, y, eid in Inform:
         # 注意 Inform 是 x,y，而数组的行列是 [y,x]
-        if 0 <= y < H and 0 <= x < W and mask[y, x]:
-            eie_idx_matrix[y, x] = int(eid)
+        if 0 <= y < H and 0 <= x < W and mask[int(y), int(x)]:
+            eie_idx_matrix[int(y), int(x)] = int(eid)
     return eie_idx_matrix
 
 if __name__ == "__main__":

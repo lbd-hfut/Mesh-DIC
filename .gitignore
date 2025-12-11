@@ -211,13 +211,17 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# bat file
+*.bat
 
 # case dir
 case/**/*.txt
 case/**/*.npy
 case/**/*.npz
 case/**/*.mat
-
+case/**/*.ipynb
+case/circle/
+case/gear/
 
 # ignore tests folder
 tests/
