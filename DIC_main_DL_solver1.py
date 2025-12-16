@@ -7,19 +7,18 @@ from scipy.io import savemat
 import csv
 import torch.nn.functional as F
 
-from DIC_net_work import MscaleDNN
 from DIC_load_config import load_mesh_dic_config
 from DIC_read_image import Img_Dataset, BufferManager, collate_fn
 from DIC_create_mesh import create_mesh_elemet
-from DIC_nodeuv_init import node_uv_init
-from DIC_g2l_DL import Global2Local_buffer, Comp_global2local #, seed_everything
+from DIC_nodeuv_init import node_uv_init, NodeUVInit_buffer
+from DIC_g2l_DL import Global2Local_buffer, Comp_global2local, seed_everything
 from DIC_result_plot import visualize_imshow, visualize_contourf
 from DIC_calc_Hb import interp_uv_strain, assemble_global_stiffness_Q8, \
      global_ICGN
 from DIC_post_processing import DIC_Strain_from_Displacement, DIC_smooth_Displacement
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-# seed_everything(42)
+seed_everything(42)
      
 class Mesh_DIC_buffer:
     plot_u = None
@@ -29,16 +28,21 @@ class Mesh_DIC_buffer:
     plot_rxy = None
     scale=None
     
+class Q8nn(nn.Module):
+    def __init__(self):
+        super(Q8nn, self).__init__()
+        shape = NodeUVInit_buffer.nodes_coord_uv.shape
+        # 随机初始化在 [-1, 1] 之间，dtype 为 float64
+        rand_tensor = (2 * torch.rand(shape, dtype=torch.float64) - 1)
+        self.params = nn.Parameter(rand_tensor)
+    def forward(self):
+        return self.params
+        
+    
 class Q8Model:
     def __init__(self):
         # super().__init__()
-        self.dnn = MscaleDNN(
-            input_dim=2,
-            hidden_units=[50, 50, 50],
-            output_dim=2,
-            scales=[1,4,8,16], # 
-            activation="tanh"
-        )
+        self.dnn = Q8nn()
         self.dnn = self.dnn.double()
         self.dnn = self.dnn.to(device)
         H,L = BufferManager.refImg.shape
@@ -80,13 +84,15 @@ class Q8Model:
         self.optimizer_bfgs = torch.optim.LBFGS(
             self.dnn.parameters(),
             lr=1.0,
-            max_iter=100,
+            max_iter=50,
             history_size=50,
-            line_search_fn="strong_wolfe"
+            line_search_fn="strong_wolfe",
+            tolerance_grad=1e-3,      # 当梯度范数小于此值时提前停止
+            tolerance_change=1e-4,    # 当参数变化小于此值时提前停止tolerance_grad=1e-6,     
             )
         
     def Q8_uv(self):
-        U = self.dnn(self.nodes_coord_norm)
+        U = self.dnn()
         nodes_u = U[:,0]
         nodes_v = U[:,1]
         u_global = torch.zeros_like(self.refImg).to(device)  # 每个像素点的 x 位移
@@ -219,7 +225,7 @@ class Mesh_DIC_Solver:
     def solve_each(self, idx):
         Q8nn = Q8Model()
         Q8nn.set_optim()
-        num_adam_epochs = 100  # 测试用，可适当增加
+        num_adam_epochs = 0  # 测试用，可适当增加
         num_bfgs_epochs = 1
         # ------------------ 使用 Adam 优化器 ------------------
         print(f"---------- solve No.{idx} defImg ----------")

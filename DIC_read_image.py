@@ -51,9 +51,9 @@ class Img_Dataset(Dataset):
         print(f"create QKBQKT_def{idx+1}:")
         BufferManager.QKBQKT_def = self._get_buffer_QK_B_QKT(defImg_bcoef)
         print(f"create QKBQKT_def{idx+1} over!")
-        print("create fx_def, fy_def:")
-        BufferManager.fx_def, BufferManager.fy_def = self._get_image_gradient(df_image, defImg_bcoef, flag='def')
-        print("create fx_def, fy_def over!")
+        # print("create fx_def, fy_def:")
+        # BufferManager.fx_def, BufferManager.fy_def = self._get_image_gradient(df_image, defImg_bcoef, flag='def')
+        # print("create fx_def, fy_def over!")
         return df_image, defImg_bcoef
     
     def open_image(self,name):

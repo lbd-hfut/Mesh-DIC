@@ -193,9 +193,12 @@ def assemble_global_residual_Q8(node_uv, alpha):
         u_px_list = np.einsum('pk,k->p', N_list, ele_node_u)
         v_px_list = np.einsum('pk,k->p', N_list, ele_node_v)
         # 灰度残差
-        r_img  = (BufferManager.refImg[row_list, col_list] - interpqbs(
-            x_px_list + u_px_list, y_px_list + v_px_list, REF_FLAG=False, DEF_FLAG=True)
-        )[:, None] # (P,1)
+        try:
+            r_img  = (BufferManager.refImg[row_list, col_list] - interpqbs(
+                x_px_list + u_px_list, y_px_list + v_px_list, REF_FLAG=False, DEF_FLAG=True)
+            )[:, None] # (P,1)
+        except:
+            return 0
         # 获取参考图像梯度
         DfDx_list = BufferManager.fx_ref[row_list, col_list]
         DfDy_list = BufferManager.fy_ref[row_list, col_list]
@@ -283,7 +286,9 @@ def global_ICGN(alpha, tol=1e-6, maxIter=100):
     for step in range(maxIter):
         # 1. 计算全局残差向量 b
         b_global = assemble_global_residual_Q8(U.reshape(num_nodes, 2), alpha)  # shape (2*num_nodes,)
-        
+        if np.isscalar(b_global):
+            return U.reshape(num_nodes, DIM), norm_of_W_list
+            
         # 2. 求解自由度增量 W
         # 只取有效自由度
         W = spsolve(StiffnessMatrixBuffer.A_global[ind_fem_not_zero, :][:, ind_fem_not_zero], b_global[ind_fem_not_zero])
@@ -295,7 +300,7 @@ def global_ICGN(alpha, tol=1e-6, maxIter=100):
         # 5. 更新位移
         U[ind_fem_not_zero] += W
         # if (step+1) % (maxIter//10) == 0:
-        print(f"Step {step+1}/{maxIter}, normW: {normW:.5e}")
+        # print(f"Step {step+1}/{maxIter}, normW: {normW:.5e}")
         
         # 6. 收敛判断
         if normW < tol:

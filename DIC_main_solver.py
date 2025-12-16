@@ -7,10 +7,12 @@ from DIC_load_config import load_mesh_dic_config
 from DIC_read_image import Img_Dataset, BufferManager, collate_fn
 from DIC_create_mesh import create_mesh_elemet
 from DIC_nodeuv_init import node_uv_init, NodeUVInit_buffer
-from DIC_g2l_DL import Global2Local_buffer, Comp_global2local
+from DIC_g2l_DL import Global2Local_buffer, Comp_global2local, seed_everything
 from DIC_result_plot import visualize_imshow, visualize_contourf
+from DIC_post_processing import DIC_Strain_from_Displacement
 from DIC_calc_Hb import interp_uv_strain, assemble_global_stiffness_Q8, \
      global_ICGN
+seed_everything(42)
      
 class Mesh_DIC_buffer:
     plot_u = None
@@ -46,14 +48,20 @@ class Mesh_DIC_Solver:
         
     def solve_each(self, idx):
         # 初始化的网格节点位移保存在 NodeUVInit_buffer.nodes_coord_uv 中
-        self.node_init_solver.solve_all_seed_points()
+        # self.node_init_solver.solve_all_seed_points()
+        self.node_init_solver.load_uv_seed()
+        self.node_init_solver.plot_init_uv(idx)
         nodes_uv, norm_of_W_list = global_ICGN(
             alpha=self.alpha, tol=self.config.cutoff_diffnorm, maxIter=self.config.max_iterations
             )
         # 插值全场位移场和导数计算位移以及保存
-        Mesh_DIC_buffer.plot_u, Mesh_DIC_buffer.plot_v, \
-            Mesh_DIC_buffer.plot_ex, Mesh_DIC_buffer.plot_ey, \
-                Mesh_DIC_buffer.plot_rxy = interp_uv_strain(nodes_uv)
+        Mesh_DIC_buffer.plot_u, Mesh_DIC_buffer.plot_v, _, _, _ = interp_uv_strain(nodes_uv)
+        if self.config.strain_calculate_flag:
+            Mesh_DIC_buffer.plot_ex, Mesh_DIC_buffer.plot_ey, Mesh_DIC_buffer.plot_rxy = \
+                DIC_Strain_from_Displacement(
+                    Mesh_DIC_buffer.plot_u, Mesh_DIC_buffer.plot_v,
+                    Global2Local_buffer.plot_validpoints, step=1,
+                    SmoothLen=self.config.strain_window_half_size)
         self.save_result(idx)
         visualize_imshow(
             idx, Mesh_DIC_buffer, 

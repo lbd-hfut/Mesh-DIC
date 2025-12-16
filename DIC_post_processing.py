@@ -60,7 +60,7 @@ def DIC_Strain_from_Displacement(u, v, flag, step, SmoothLen):
     v = v.T
     flag = flag.T
 
-    m = SmoothLen
+    m = SmoothLen * 2 + 1
     if m % 2 == 0:
         m += 1  # Ensure odd
     hfm = (m - 1) // 2

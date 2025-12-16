@@ -74,7 +74,7 @@ class Comp_global2local:
         Inform_file = os.path.join(self.mesh_dir, "Inform.npy")
         Global2Local_buffer.nodes_coord, Global2Local_buffer.id2idx = read_nodes(nodes_file)
         Global2Local_buffer.elements = read_elements(elements_file)
-        Global2Local_buffer.Inform = np.load(Inform_file)
+        Global2Local_buffer.Inform = np.load(Inform_file, allow_pickle=True)
         Global2Local_buffer.threaddiagram = build_eie_idx_matrix(
             Inform=Global2Local_buffer.Inform,
             mask=Global2Local_buffer.mask
