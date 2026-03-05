@@ -80,7 +80,7 @@ class Q8Model:
         self.optimizer_bfgs = torch.optim.LBFGS(
             self.dnn.parameters(),
             lr=1.0,
-            max_iter=100,
+            max_iter=50,
             history_size=50,
             line_search_fn="strong_wolfe"
             )
@@ -219,7 +219,7 @@ class Mesh_DIC_Solver:
     def solve_each(self, idx):
         Q8nn = Q8Model()
         Q8nn.set_optim()
-        num_adam_epochs = 100  # 测试用，可适当增加
+        num_adam_epochs = 0  # 测试用，可适当增加
         num_bfgs_epochs = 1
         # ------------------ 使用 Adam 优化器 ------------------
         print(f"---------- solve No.{idx} defImg ----------")

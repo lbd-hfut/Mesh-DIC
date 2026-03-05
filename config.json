@@ -1,7 +1,7 @@
 {
-    "input_dir": "C:/01project/DIC_boundary_test_data-main/ring_crack/",
-    "output_dir": "C:/01project/DIC_boundary_test_data-main/ring_crack/Q8DIC/",
-    "mesh_dir": "C:/01project/DIC_boundary_test_data-main/ring_crack/Q8DIC",
+    "input_dir": "C:/01project/DIC_boundary_test_data/ring_crack/",
+    "output_dir": "C:/01project/DIC_boundary_test_data/ring_crack/Q8DIC/",
+    "mesh_dir": "C:/01project/DIC_boundary_test_data/ring_crack/Q8DIC",
     "mesh_size": 41.0,
     "simplify_roi_boundary_poly": 2.0,
     "bcoef_border": 3,
