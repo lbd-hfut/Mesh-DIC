@@ -219,9 +219,9 @@ case/**/*.txt
 case/**/*.npy
 case/**/*.npz
 case/**/*.mat
-case/**/*.ipynb
-case/circle/
-case/gear/
+# case/**/*.ipynb
+# case/circle/
+# case/gear/
 
 # ignore tests folder
 tests/
