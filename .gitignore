@@ -212,7 +212,7 @@ __pycache__/
 *$py.class
 
 # bat file
-*.bat
+# *.bat
 
 # case dir
 case/**/*.txt
